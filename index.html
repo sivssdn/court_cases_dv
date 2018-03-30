@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Adding Labels</title>
+    <script type="text/javascript" src="d3.js"></script>
+    <style type="text/css">
+
+        body {
+            background-color: white;
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+        }
+
+        h1{
+            color: #e7032a;
+            font-size: 2.0em;
+            margin: 20px 0 0 100px;
+        }
+        h3{
+            color: #333399;
+            font-size: 1.5em;
+            margin: 0 0 20px 100px;
+        }
+
+        p {
+            margin-left: 100px;
+            font-size: 11pt;
+            color: black;
+        }
+        #main{
+            width: 1000px;
+            display: block;
+            margin: 0 auto;
+        }
+        div.y2013 {
+            color: #FF0099;
+            display: inline;
+        }
+        div.y1990 {
+            color: #0099FF;
+            display: inline;
+        }
+
+        svg {
+            background-color: #ffffff;
+            display: block;
+            margin: 0 auto;
+        }
+
+        circle {
+            stroke-width: 1;
+        }
+
+        circle.y2013 {
+            fill: #1c700c;
+        }
+
+        circle.y1990 {
+            fill: #e7032a;
+        }
+
+        circle:hover {
+            opacity: .5;
+        }
+
+        line.grid {
+            stroke: #eee;
+        }
+
+        line.between {
+            stroke: black;
+        }
+
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: black;
+            shape-rendering: crispEdges;
+        }
+
+        .axis text {
+            font-family: sans-serif;
+            font-size: 11px;
+        }
+
+        .xlabel {
+            font-famile: sans-serif;
+            font-size: 11px;
+            color: gray;
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="main">
+    <h1>Is Justice Being Delayed? (Based on 2016 data)</h1>
+    <h3>Court Disposal of IPC Crime Cases in Metropolitan Cities ‐ 2016 </h3>
+    <p><strong>Data Source : <a href="http://ncrb.gov.in/StatPublications/CII/CII2016/pdfs/Table%2018B.2.pdf">http://ncrb.gov.in/StatPublications/CII/CII2016/pdfs/Table%2018B.2.pdf</a></strong></p>
+    <p>The green dots in the dots chart below represent the total cases for which trials needed to be done. This includes
+        cases pending from last year as well as new cases.
+    </p>
+    <p>The redx dots represents the cases disposed of by courts of the mentioned metropolitan cities, including
+    cases in which trials were completed, cases compounded, disposed by plea bargaining and cases withdrawn by government.</p>
+    <p>The difference between the total cases needed to be disposed and the ones actually disposed is represented on the same aixs
+    in the dots graph below.</p>
+</div>
+<script type="text/javascript">
+
+    //y2013 is total cases disposed
+    //y1990 is total cases for which trial needed to be done
+
+    // this is the size of the svg container -- the white part
+    var fullwidth = 1000,
+        fullheight = 500;
+
+    // these are the margins around the graph. Axes labels go in margins.
+    var margin = {top: 20, right: 25, bottom: 20, left: 100};
+
+    var width = 1000 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+
+    var widthScale = d3.scale.linear()
+        .range([ 0, width]);
+
+    var heightScale = d3.scale.ordinal()
+        .rangeRoundBands([ margin.top, height], 0.2);
+
+    var xAxis = d3.svg.axis()
+        .scale(widthScale)
+        .orient("bottom");
+
+    var yAxis = d3.svg.axis()
+        .scale(heightScale)
+        .orient("left")
+        .innerTickSize([0]);
+
+    var svg = d3.select("body")
+        .append("svg")
+        .attr("width", fullwidth)
+        .attr("height", fullheight);
+
+
+    d3.csv("court_cases.csv", function(error, data) {
+
+        if (error) {
+            console.log("error reading file");
+        }
+
+        data.sort(function(a, b) {
+            return d3.descending(+a.y2013, +b.y2013);
+        });
+
+
+        widthScale.domain([0, 230000]); //x-axis markings
+
+        // js map: will make a new array out of all the d.region fields
+        heightScale.domain(data.map(function(d) { return d.region; } ));
+
+
+        // Make the faint lines from y labels to highest dot
+
+        var linesGrid = svg.selectAll("lines.grid")
+            .data(data)
+            .enter()
+            .append("line");
+
+        linesGrid.attr("class", "grid")
+            .attr("x1", margin.left)
+            .attr("y1", function(d) {
+                return heightScale(d.region) + heightScale.rangeBand()/2;
+            })
+            .attr("x2", function(d) {
+                return margin.left + widthScale(+d.y2013);
+
+            })
+            .attr("y2", function(d) {
+                return heightScale(d.region) + heightScale.rangeBand()/2;
+            });
+
+        // Make the dotted lines between the dots
+
+        var linesBetween = svg.selectAll("lines.between")
+            .data(data)
+            .enter()
+            .append("line");
+
+        linesBetween.attr("class", "between")
+            .attr("x1", function(d) {
+                return margin.left + widthScale(+d.y1990);
+            })
+            .attr("y1", function(d) {
+                return heightScale(d.region) + heightScale.rangeBand()/2;
+            })
+            .attr("x2", function(d) {
+                return margin.left + widthScale(d.y2013);
+            })
+            .attr("y2", function(d) {
+                return heightScale(d.region) + heightScale.rangeBand()/2;
+            })
+            .attr("stroke-dasharray", "5,5")
+            .attr("stroke-width", function(d, i) {
+                if (d.region === "World") {
+                    return "1";
+                } else {
+                    return "0.5";
+                }
+            });
+
+
+        // Make the dots for 1990
+
+        var dots1990 = svg.selectAll("circle.y1990")
+            .data(data)
+            .enter()
+            .append("circle");
+
+        dots1990
+            .attr("class", "y1990")
+            .attr("cx", function(d) {
+                return margin.left + widthScale(+d.y1990);
+            })
+            .attr("r", heightScale.rangeBand()/2)
+            .attr("cy", function(d) {
+                return heightScale(d.region) + heightScale.rangeBand()/2;
+            })
+            .style("fill", function(d){
+                if (d.region === "World") {
+                    return "#333399";
+                }
+            })
+            .append("title")
+            .text(function(d) {
+                return d.region + " Total Cases: " + d.y1990 ;
+            });
+
+        // Make the dots for 2013
+
+        var dots2013 = svg.selectAll("circle.y2013")
+            .data(data)
+            .enter()
+            .append("circle");
+
+        dots2013
+            .attr("class", "y2013")
+            .attr("cx", function(d) {
+                return margin.left + widthScale(+d.y2013);
+            })
+            .attr("r", heightScale.rangeBand()/2)
+            .attr("cy", function(d) {
+                return heightScale(d.region) + heightScale.rangeBand()/2;
+            })
+            .style("fill", function(d){
+
+            })
+            .append("title")
+            .text(function(d) {
+                return d.region + " disposed cases: " + d.y2013;
+            });
+
+        // add the axes
+
+        svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(" + margin.left + "," + height + ")")
+            .call(xAxis);
+
+        svg.append("g")
+            .attr("class", "y axis")
+            .attr("transform", "translate(" + margin.left + ",0)")
+            .call(yAxis);
+
+        svg.append("text")
+            .attr("class", "xlabel")
+            .attr("transform", "translate(" + (margin.left + width / 2) + " ," +
+                (height + margin.bottom) + ")")
+            .style("text-anchor", "middle")
+            .attr("dy", "12")
+            .text("Number Of Cases");
+
+        // Style one of the Y labels bold:
+/*
+        // a hack that works if you can unravel the selections - to style "The World" bold in the axis label, which is the 8th element:
+        var allYAxisLabels = d3.selectAll("g.y.axis g.tick text")[0]; // un-nest array
+        d3.select(allYAxisLabels[5]).style("font-weight", "bold");*/
+
+    });
+
+</script>
+
+</body>
+</html>
